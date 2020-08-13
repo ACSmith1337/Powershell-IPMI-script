@@ -1,19 +1,18 @@
-
-
-#Powershell script for R710 auto fan control.
+#Powershell script for R430 auto fan control.
  
  #change these
-$dracIP = "192.168.0.125"
+$dracIP = "192.168.1.##"
 $dracUser = "root"
-$dracPass = "calvin"
-$ipmiToolDir = "C:\Program Files (x86)\Dell\SysMgt\bmc"
+$dracPass = "PASSWORD"
+$ipmiToolDir = "C:\Program Files\Dell\SysMgt\iDRACTools\IPMI"
 
-$lowerTempLimit = [int]25
-$upperTempLimit = [int]30
-$dangerTemp = [int]31 #server goes back to auto if this temp is reached
-$lowerRpmLimit = [int]4
-$upperRpmLimit = [int]12
-#1 is around ~1000rpm, where 50 is full tilt 6600rpm
+#This is celcius based off CPU_0 Temp.
+$lowerTempLimit = [int]21
+$upperTempLimit = [int]50
+$dangerTemp = [int]51 #server goes back to auto if this temp is reached
+$lowerRpmLimit = [int]1
+$upperRpmLimit = [int]10
+#1 is around ~2800rpm, 20 is ~3400rpm, 25 max sound for idle, 50 is ~9000rpm, 100 is ~18000rpm
 #stop changing here
 
 $setManual = [String]("0x30 0x30 0x01 0x00")
@@ -29,16 +28,16 @@ cd $ipmiToolDir
 ($start +" "+ $setManual) | Invoke-Expression
 }
 function get-Temp()
-{
-$command = './ipmitool.exe -I lanplus -H ' +$dracIP+ ' -U ' +$dracUser+ ' -P ' +$dracPass+ ' sensor reading "Ambient Temp"'
+{#Polls CPU_0 Temp
+$command = './ipmitool.exe -I lanplus -H ' +$dracIP+ ' -U ' +$dracUser+ ' -P ' +$dracPass+ ' sensor reading "Temp"'
 $stringtemp = Invoke-Expression -Command $command
 $stringtemp = [String]$stringtemp
 return [int]$stringtemp.Substring($stringtemp.IndexOf("|")+2)
 }
 
 function get-FanRpm()
-{
-$command = './ipmitool.exe -I lanplus -H ' +$dracIP+' -U '+$dracUser+' -P '+$dracPass+' sensor reading "FAN 3 RPM"'
+{#Polls Front Fan in Row 3 RPM speed
+$command = './ipmitool.exe -I lanplus -H ' +$dracIP+' -U '+$dracUser+' -P '+$dracPass+' sensor reading "Fan3A"'
 $stringtemp = Invoke-Expression -Command $command
 return [int]$stringtemp.Substring($stringtemp.IndexOf("|")+1)
 }
@@ -54,7 +53,7 @@ do-Setup
 Do{
 [int]$temp = get-Temp
 [int]$rpm = get-FanRpm
-Write-Host "The temp is" $temp"c"
+Write-Host "The CPU temp is" $temp"c"
 Write-Host "Current fan rpm is" $rpm
 
 if ($temp -ge $dangerTemp){
@@ -76,4 +75,3 @@ if($autoMap -le 15){
 Start-Sleep -s 10
 
 } While(1)
-
